@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 ## value.
 
 def abs_field(box):
-    fft_box = fft2((box))
+    fft_box = fftshift(fft2((box)))
     psi_sqr = np.abs(fft_box)
 
     return psi_sqr
@@ -62,11 +62,13 @@ def plot_ps(box):
     plt.xlabel('Frequency')
     plt.ylabel('Power spectrum')
     plt.show()
-    plt
     
 
 ############### REVERSE PROCESS #################
 #################################################
+
+
+
 
 
 
