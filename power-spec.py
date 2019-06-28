@@ -1,6 +1,4 @@
 import numpy as np
-import math as m
-import cmath as cm
 from numpy.fft import fft, fft2, fftfreq, ifft, ifft2, fftshift, fftn, ifftn, ifftshift
 import matplotlib.pyplot as plt
 import random as rand
@@ -8,7 +6,7 @@ import random as rand
 
 
 
-## Takes an NxN box in real space, compute its FFT and take its absolute
+## Take a NxN box in real space, compute its FFT and take its absolute
 ## value.
 
 def abs_field(box):
@@ -82,86 +80,40 @@ def count_dim(ps_size):
 
     return 0
 
-## Locates in what entries you have complex numbers, and where would you find its conjugate. Elements output 0 when 
-## there is no complex conjugate for those elements
-
-
-def location_cc(complex_box):
-    real_box = np.real(complex_box)
-    N = int(np.sqrt(np.size(real_box)))
-
-    zeros = np.zeros((N,N))
-
-    for i in range(0,N):
-        for j in range(0,N):
-            for k in range(0,N):
-                for h in range(0,N):
-                    if real_box[i,j] == real_box[k,h]:
-                        if i != k or j != h:
-                            zeros[i,j] = real_box[i,j]
-                            zeros[k,h] = real_box[k,h]
-    return zeros
 
 ## This is the main code: it uses as input a given power spectrum and compute some box that would have as power spec
-## the array ps input that way
+## the array ps inputed that way
 
 def find_box(ps):
     size = np.size(ps)
     N = count_dim(size)
-    box = np.zeros((N,N),dtype='complex')
-    sample_box = np.random.normal(size=(N,N))  
-    ft_sample_box = fftshift(fft2(sample_box))
-    loc = location_cc(ft_sample_box)
-    size = 0
+    a = np.random.normal(size=(N,N))
+    b = np.random.normal(size=(N,N))
+    box = a + 1j*b
+    shift_box = fftshift(box)
     K = fftshift(k_matrix(box))
-    k_value = np.unique(K)
+    k_value = np.unique(K,return_counts=True)    
+
+    
     for i in range(0,N):
         for j in range(0,N):
-            if box[i,j] == loc[i,j]:
-                for p in range(0,len(k_value)):    
-                    number = np.random.normal(0,np.sqrt(ps[p]),size=(1,1))
-                    box[i,j] = number[0]
-                    
+            k = np.sqrt(i**2+j**2)/N
+            k_compare = k_value[0] - k
+            loc_k = np.where(k_compare == 0)[0]
+            if len(loc_k) > 0 :
+                box[i,j] = np.sqrt(ps[loc_k[0]]/2)*box[i,j]
+    
+    for i in range(0,N):
+        for j in range(0,N):
+            if box[i,j] != box[-i,-j]:
+                box[i,j] = np.conjugate(box[-i,-j])
             else:
-                for p in range(0,len(k_value)):
-                    size = size + 1
-                number_c = rand_complex(np.sqrt(ps[p])*size,2)
-                box[i,j] = number_c[0]
-                box[-i,-j] = number_c[1]
-                size = 0
-        
+                box[i,j] = np.real(box[i,j])
+            
+    return box
 
-    
-
-
-    return ifft2(box)
-    
-    
-    
-
-
-## Generates a 1 x elements matrix with random complex number followed by their complex conjugate. If elements is odd
-## then the last complex number doesn't have its pair
-        
-
-def rand_complex(value,elements):
-    ps = value/(2*elements)
-    i = cm.sqrt(-1)
-    z = np.zeros(elements,dtype='complex')
-    cc = 0
-    while cc < elements:
-        a = np.random.normal(0,ps,size=(1,1))
-        b = np.random.normal(0,ps,size=(1,1))
-        z[cc] = a[0] + i*b[0]
-        cc = cc + 1
-        if cc == elements:
-            return z
-        z[cc] = a[0] - i*b[0]
-        cc = cc + 1
-        
             
     
-    return z
 
 ## Counts the size of the power spectrum array produced by a n x n box
 
@@ -172,8 +124,5 @@ def count_size(n):
     ps_size = len(ps)
     return ps_size
     
-
-
-
 
 
