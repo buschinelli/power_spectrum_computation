@@ -69,7 +69,7 @@ def find_box(ps,dx,N):
                 box[i,j] = np.real(box[i,j])
                 
     
-    return ifft2(box)/(dx**2)
+    return N*ifft2(box)
     
 dx = 1
 N = 4
