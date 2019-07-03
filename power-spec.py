@@ -4,62 +4,48 @@ import matplotlib.pyplot as plt
 import random as rand
 
 def power_spec(box,dx,bins):
-    N = int(np.sqrt(np.size(box)))
-    ibox = (dx**2)*fftshift(fft2(box))
+    N = box.shape[0]
+    ibox = (dx**2)*fftshift(fft2(fftshift(box)))
     ibox_abs_sq = np.abs(ibox)**2
-    K = k_matrix(box,dx)
+    k_comp = fftshift(fftfreq(N,d=dx))
+    K = 2*np.pi*np.sqrt(np.outer(np.ones(N),k_comp)**2 + np.outer(k_comp,np.ones(N))**2)
     unique_K = np.unique(K,return_counts=True)
     max_k = np.amax(unique_K[0])
     ps = np.zeros((bins))
-    step = max_k/bins
-    p = 0
-    while p*step < max_k:
-        n_ele = 0
-        for i in range(-N//2,N//2):
-            for j in range(-N//2,N//2):
-                z = np.sqrt(i**2+j**2)/(N*dx)
-                if z < (p+1)*step and z >= p*step :
-                    ps[p] = ps[p] + ibox_abs_sq[i,j]     
-                    n_ele = n_ele + 1         
-        ps[p] = ps[p]/n_ele
-        p = p + 1
+    step = max_k/bins # Delta-k
+
     
-    ps = ps/((N*dx)**2)
-    return ps
+    n_elements = np.zeros((bins))
+    for i in range(-N//2,N//2):
+        for j in range(-N//2,N//2):
+            z = 2*np.pi*np.sqrt(i**2+j**2)/(N*dx)
+            bin_num = int(z // step)-1
+            ps[bin_num] += ibox_abs_sq[i,j]
+            n_elements[bin_num] += 1
+    
+    ps /= n_elements
+    
+    return ps/((N*dx)**2)  
 
-
-def k_matrix(box,dx):
-    size = int(np.sqrt(np.size(box)))
-    kx = fftshift(fftfreq(size,d=dx))
-    ky = fftshift(fftfreq(size,d=dx))
-    k = np.zeros((size,size),dtype='float')
-    for i in range(0,size):
-        for j in range(0,size):
-            k[i,j] = np.sqrt(kx[i]**2+ky[j]**2)
-    return k
 
 
 def find_box(ps,dx,N):
-    bins = len(ps)
+    bins = ps.shape[0]
     a = np.random.normal(size=(N,N))
     b = np.random.normal(size=(N,N))
     box = a + 1j*b
+    k_comp = fftshift(fftfreq(N,d=dx))
     shift_box = fftshift(box)
-    K = k_matrix(box,dx)
+    K = 2*np.pi*np.sqrt(np.outer(np.ones(N),k_comp)**2 + np.outer(k_comp,np.ones(N))**2)
     unique_K = np.unique(K,return_counts=True) 
     max_k = np.amax(unique_K[0])
     step = max_k/bins
-    p = 0
     for i in range(-N//2,N//2):
         for j in range(-N//2,N//2):
-            n_ele = 0
-            while p*step < max_k:
-                z = np.sqrt(i**2+j**2)/(N*dx)
-                if z < (p+1)*step and z >= p*step:
-                    el = np.random.normal(0,np.sqrt(ps[p]/2),size=(1,1))
-                    box[i,j] = el[0]
-                p = p + 1
-
+            z = np.sqrt(i**2+j**2)/(N*dx)
+            bin_num = int(z // step)-1
+            box[i,j] *= np.sqrt((N*dx)**2*ps[bin_num]/2)
+            
     
     for i in range(0,N):
         for j in range(0,N):
@@ -69,15 +55,33 @@ def find_box(ps,dx,N):
                 box[i,j] = np.real(box[i,j])
                 
     
-    return N*ifft2(box)
-    
-dx = 1
-N = 4
-bins = 4
+    return ifft2(box)/(dx**2)
+
+
+
+
+## Tests
+
+dx = 0.23
+N = 200
+bins = 80
 
 box = np.random.normal(size=(N,N))
-ps = power_spec(box,dx,bins)
-boxf = find_box(ps,dx,N)
-psf = power_spec(boxf,dx,bins)
-plt.plot(make_k(box,dx,bins),ps)
-plt.plot(make_k(box,dx,bins),psf)
+average = np.zeros((bins))
+universes = 100
+all_ps = np.zeros((bins))
+
+for i in range(universes):
+    ps = power_spec(box,dx,bins)
+    all_ps = np.vstack((all_ps,ps))
+    box = find_box(ps,dx,N)   
+    
+averages = np.mean(all_ps,axis=0)
+plt.plot(averages)
+plt.show()
+
+
+
+
+    
+    
